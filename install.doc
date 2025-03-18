@@ -1,0 +1,22 @@
+composer create-project laravel/laravel laravel_jetstrem_11 "11"
+
+composer require laravel/jetstream
+php artisan jetstream:install livewire
+ New database migrations were added. Would you like to re-run your migrations? (yes/no) [yes]
+❯ yes
+config =>  'features' => [
+        // Features::termsAndPrivacyPolicy(),
+         Features::profilePhotos(),// uncommend this  line
+        // Features::api(),
+        // Features::teams(['invitations' => true]),
+        Features::accountDeletion(),
+    ],
+APP_NAME=Laravel
+APP_ENV=local
+APP_KEY=base64:TUMDO5DLI0xwAr3EFednMQXrdCjyQChEWWvdriCEoiE=
+APP_DEBUG=true
+APP_TIMEZONE=UTC
+APP_URL=http://127.0.0.1:8000 // this url change phato
+
+
+php artisan storage:link
