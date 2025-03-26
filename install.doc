@@ -20,3 +20,260 @@ APP_URL=http://127.0.0.1:8000 // this url change phato
 
 
 php artisan storage:link
+
+
+
+
+php artisan make:controller AdminController
+php artisan make:model Admin -m
+<?php
+
+namespace App\Models;
+
+// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Jetstream\HasProfilePhoto;
+use Laravel\Sanctum\HasApiTokens;
+
+class Admin extends Authenticatable
+{
+    use HasApiTokens;
+
+    /** @use HasFactory<\Database\Factories\UserFactory> */
+    use HasFactory;
+    use HasProfilePhoto;
+    use Notifiable;
+    use TwoFactorAuthenticatable;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+        'two_factor_recovery_codes',
+        'two_factor_secret',
+    ];
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = [
+        'profile_photo_url',
+    ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+        ];
+    }
+}
+
+php artisan migrate
+php artisan make:factory AdminFactory
+
+====Seeders=> DatabaseSeeder=>
+<?php
+
+namespace Database\Seeders;
+
+//use App\Models\User;
+
+use App\Models\Admin;
+// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+
+class DatabaseSeeder extends Seeder
+{
+    /**
+     * Seed the application's database.
+     */
+    public function run(): void
+    {
+        // User::factory(10)->create();
+        Admin::factory()->create();
+        // User::factory()->create([
+        //     'name' => 'Test User',
+        //     'email' => 'test@example.com',
+        // ]);
+    }
+}
+F:\laragon\www\laravel_jetstream_11\config\auth.php
+'guards' => [
+        'web' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
+        'admin' => [
+            'driver' => 'session',
+            'provider' => 'admins',
+        ],
+    ],
+     'providers' => [
+        'users' => [
+            'driver' => 'eloquent',
+            'model' => env('AUTH_MODEL', App\Models\User::class),
+        ],
+        'admins' => [
+            'driver' => 'eloquent',
+            'model' => env('AUTH_MODEL', App\Models\Admin::class),
+        ],
+     ],
+      'passwords' => [
+        'users' => [
+            'provider' => 'users',
+            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+        'admins' => [
+            'provider' => 'admins',
+            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+    ],
+
+
+
+php artisan migrate --seed
+php artisan serve
+ php artisan r:l
+F:\laragon\www\laravel_jetstream_11\vendor\laravel\fortify\src\Http\Controllers\AuthenticatedSessionController.php
+
+
+// go this  way copy tow file
+F:\laragon\www\laravel_jetstream_11\vendor\laravel\fortify\src\Actions
+RedirectIfTwoFactorAuthenticatable.php 
+AttemptToAuthenticate.php
+//go this  way paste two file 
+F:\laragon\www\laravel_jetstream_11\app\Actions\Fortify
+RedirectIfTwoFactorAuthenticatable.php 
+AttemptToAuthenticate.php
+
+//go to the laravel_jetstream_11\app\Providers\FortifyServiceProvider.php
+
+add this to file use 
+App\Actions\Fortify\AttemptToAuthenticate;
+use App\Actions\Fortify\RedirectIfTwoFactorAuthenticatable;
+use App\Http\Controllers\AdminController;
+use Auth;
+and this is the
+ public function register(): void
+    {
+        $this->app->when([
+            AdminController::class,
+            AttemptToAuthenticate::class,
+            RedirectIfTwoFactorAuthenticatable::class])
+            ->needs(StatefulGuard::class)->give(function(){
+                return Auth::guard('admin');
+            });
+    }
+
+use App\Actions\Fortify\RedirectIfTwoFactorAuthenticatable;
+modify this code
+
+      //$provider = $this->guard->getProvider();
+        $model = $this->guard->getProvider()->getModel();
+
+        return tap($model::where(Fortify::username(),
+        $request->{Fortify::username()})->first(), function ($user) use($request)
+         {
+            if (! $user || ! $this->guard->getProvider()
+            ->validateCredentials($user, ['password' => $request->password])) {
+                $this->fireFailedEvent($request, $user);
+
+                $this->throwFailedAuthenticationException($request);
+            }
+        });
+
+
+// go to this path and copy laravel_jetstream_11\vendor\laravel\fortify\src\Http\Controllers\AuthenticatedSessionController.php
+
+
+
+go to this path and copy laravel_jetstream_11\vendor\laravel\fortify\src\Http\Responses\LoginResponse.php
+
+
+go to this path and poste laravel_jetstream_11\app\Http\Response\LoginResponse.php
+<?php
+
+namespace App\Http\Responses;
+
+use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
+use Laravel\Fortify\Fortify;
+
+class LoginResponse implements LoginResponseContract
+{
+    /**
+     * Create an HTTP response that represents the object.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Symfony\Component\HttpFoundation\Response
+     */
+    public function toResponse($request)
+    {
+        return $request->wantsJson()
+                    ? response()->json(['two_factor' => false])
+                    : redirect()->intended(Fortify::redirects('login'));
+    }
+}
+F:\laragon\www\laravel_jetstream_11\app\Providers\RouteServiceProvider.php
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
+
+class RouteServiceProvider extends ServiceProvider
+{
+    public const HOME = '/dashboard';
+    public function boot(): void
+    {
+        $this->configureRateLimiting();
+
+        $this->routes( function (){
+            Route::middleware('api')
+            ->prefix('api')
+            ->group(base_path('routes/api.php'));
+            Route::middleware('web')
+            ->group(base_path('routes/web.php'));
+        });
+    }
+    protected function configureRateLimiting(): void
+    {
+     RateLimiter::for('api', function (Request $request) {
+            return Limit::perMinute(60)->by($request->user()?->id ? : 
+            $request->ip());
+        });
+    }
+}
