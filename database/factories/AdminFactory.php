@@ -29,7 +29,7 @@ class AdminFactory extends Factory
             'name' => 'Admin',
             'email' => 'admin@gmail.com',
             'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
+            'password' => static::$password ??= Hash::make('123456789'),
             'remember_token' => Str::random(10),
             'profile_photo_path' => null,
             'current_team_id' => null,
